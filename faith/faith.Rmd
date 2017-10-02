@@ -1,0 +1,65 @@
+---
+title: "Faith"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(ggplot2)
+library(magrittr)
+library(scales)
+```
+
+## Introduction
+
+As a data scientist fresh out of college, one of the first challenges I faced as an employee was verbalizing the value I provide in a concrete manner. Out of the many professions in the tech space, the job description for data scientist has relatively high variance (yes, that was intentional), requiring degrees of statistical savvy, programming competence, and impactful business acumen. From my perspective, my major contribution to a company is a recommendation backed by data and analysis. The difficulty in conferring value to this product has many sources: lag time between consequences and the recommendation, differences between implementation and the recommendation, metrics that are difficult or impossible to track, and the unavoidable uncertainty of idiosyncratic noise. With good practices and resources, we can mitigate the impact these factors have on our ability to make good decisions, but I think it is important to know what results we can guarantee and where we can confide our trust. These guarantees are the foundation of my "faith" in modeling; they are the reason why I can make a recommendation with a clear conscience and sleep easy at night.
+
+## To Make a Point 
+
+Recently at a baby shower, my coworkers and I were asked to guess the weight of the baby. I looked up the average weight of newborn infants in America, wrote down 7.7 lbs. (sorry metrics folks), and moved on to the snacks table. This exercise demonstrates two of the most common tools in a data scientist's skillset: point estimation, or making a guess about an unknown number, and having your dietary needs heavily subsidized by Silicon Valley. Nonetheless, using averages as point estimators has much stronger motivation than a vague intuition that it may be a smart thing to do. Explicitly, the Law of Large Numbers and, more colloquially, "the wisdom of crowds" provide a reason for faith in this estimate.
+
+Let's assume for a minute that the true average weight of babies is the best guess possible in this baby shower game. Under some assumptions, this is true; for example, the expectation is the optimal guess when minimizing a squared loss function. Then our problem has gained focus, transitioning from guessing the weight of this specific child to estimating the true average of the weight of newborn infants. This is an easier problem because I might have a lot of data about newborn infants but very little data about this specific child. On a side note, this is also a critical part of my job, digesting a problem into a form that can be written numerically and computed from data. The missing link in our logic is to justify why we believe the empirical or observed average of newborn infants should be close to the true average. We bridge this gap with the Law of Large Numbers which gives us the following under some assumptions about the distribution of $Y_i$, the weight of the $i$th infant:
+$$
+\frac{1}{n} \sum_{i = 1}^n Y_i \stackrel{\mathcal{p}}{\to}\mathbb{E} (Y).
+$$
+To parse the above, the left hand side is simply the average of our sample (i.e. the observed average weight of infants in our data). As $n$ increases, this approaches $\mathbb{E}(Y)$ or the true expectation of the weight. The $p$ denotes convergence in probability, which means that as $n$ grows, the probability of the sample average being close to the true expectation goes to 1. This result is comforting, because it says that the more data I have the closer my estimate will be. Extending that, I have a method that might not be great with little data, but I can guarantee that it will work well as I accumulate more information.
+
+Let's say we could chat with God or get a glimpse into the code that runs the world, and we find out that the weights of newborn babies follow a Normal distribution with mean 7.7 and some variance $\sigma^2$. Then for $\sigma^2 = 1$ and $\sigma^2 = 3$, the observed histograms of 10,000 babies might look like the following:
+
+```{r, echo = FALSE, warning = FALSE, fig.align = 'center'}
+n = 10000
+
+weightDists <- data.frame(mu = 7.7, sigma2 = c(rep(1, n / 2), rep(3, n/2))) %>%
+  mutate(`Weight of Baby (lbs)` = rnorm(n, mu, sqrt(sigma2)),
+         sigma2 = paste("sigma2 =", sigma2))
+
+weightDists %>%
+  ggplot(aes(x = `Weight of Baby (lbs)`)) +
+           geom_histogram(aes(y = ..count.. / tapply(..count..,..PANEL..,sum)[..PANEL..]), 
+                          bins = 30, fill = "lightblue") +
+           facet_grid(.~sigma2) +
+  theme_bw() +
+  scale_y_continuous(name = "Percentage of Babies", labels = percent)
+```
+
+In either case, it is not hard to believe that both distributions are centered around the mean at 7.7 lbs. However in reality, I have a hard time getting God or some universal code to reveal to me the true average weight of infants, so I rely on the data to estimate the true mean. We can take our simulated infant weights and pretend they enter our dataset one by one. As each one enters I can update our estimator, the mean in this case. Graphing the value of our estimator against the number of observations in our dataset gives us the following:
+
+```{r, echo = FALSE, fig.align = 'center'}
+americanWeights <- weightDists %>%
+  group_by(sigma2) %>%
+  mutate(muHat = cummean(`Weight of Baby (lbs)`),
+         index = row_number())
+
+americanWeights %>%
+  filter(index < 750) %>%
+  ggplot() +
+  geom_line(aes(x = index, y = muHat), color = "blue") +
+  geom_hline(aes(yintercept = 7.7), linetype = "dashed", color = "red") +
+  theme_bw() +
+  ylab("Estimate for True Weight (lbs)") +
+  xlab("Number of Observations") +
+  facet_grid(sigma2~.)
+```
+
+As the number of observations grow large, we see that the estimator eventually does converge to 7.7 lbs. However, the noisier distribution with a larger variance took more observations to stabilize around the true value. Sometimes data originate from even noisier or complex distributions where observations may covary with one another. Though a Law of Large Numbers may still hold, we may need vastly larger amounts of data to make a precise estimate. Our estimates may very well be wrong, but we can motivate our methods with the fact that in the very least they will be right when we have enough data. This characteristic of our estimators is a property called consistency. Personally, this quality is important to me because we have to make decisions in the midst of uncertainty, and though I may not be able to always deliver the correct answer, I can at least deliver a data-driven answer that is consistent and will be correct given enough data. That, to me, is a recommendation given in good faith.
