@@ -1,2 +1,2 @@
 # virtuous
-Simulations and coding examples for my blog on jhclin.com
+Simulations, coding examples, and graphics for my blog at virtuousmodeling.com
